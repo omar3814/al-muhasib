@@ -4,17 +4,14 @@ import { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './contexts/AuthContext';
 
-// Layouts
 import MainLayout from './components/layout/MainLayout';
-// Auth
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
-// Page Components (Lazy Loaded)
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const AccountsPage = React.lazy(() => import('./pages/AccountsPage'));
 const MaterialsPage = React.lazy(() => import('./pages/MaterialsPage'));
 const TransactionsPage = React.lazy(() => import('./pages/TransactionsPage'));
-const HistoryPage = React.lazy(() => import('./pages/HistoryPage'));
+// const HistoryPage = React.lazy(() => import('./pages/HistoryPage')); // Not actively used yet
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const SignupPage = React.lazy(() => import('./pages/SignupPage'));
@@ -39,7 +36,7 @@ function App() {
   const { user, loading } = useAuth(); 
 
   return (
-    <div dir="rtl">
+    <div> 
       <Toaster
         position="bottom-center"
         reverseOrder={false}
@@ -61,7 +58,7 @@ function App() {
             <Route path="accounts" element={<AccountsPage />} />
             <Route path="materials" element={<MaterialsPage />} />
             <Route path="transactions" element={<TransactionsPage />} />
-            <Route path="history" element={<HistoryPage />} />
+            {/* <Route path="history" element={<HistoryPage />} /> */}
             <Route path="profile" element={<ProfilePage />} />
           </Route>
           

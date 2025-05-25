@@ -1,4 +1,3 @@
-// src/components/layout/Navbar.jsx
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { FiLogOut, FiUser, FiLogIn, FiUserPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import LanguageSwitcher from '../common/LanguageSwitcher';
 
 const Navbar = () => {
   const { t } = useTranslation('common');
@@ -27,8 +27,11 @@ const Navbar = () => {
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 text-accent-blue font-bold text-xl hover:opacity-80 transition-opacity">
-              {t('appName')}
+            <Link to="/" className="flex-shrink-0 flex items-center text-accent-blue hover:opacity-80 transition-opacity">
+              <img className="h-8 w-auto me-2" src="/favicon.png" alt={t('appName')} />
+              <span className="font-bold text-xl">
+                {t('appName')}
+              </span>
             </Link>
             {user && (
               <div className="hidden md:block">
@@ -37,12 +40,12 @@ const Navbar = () => {
                   <Link to="/accounts" className="text-text-secondary-dark hover:text-text-primary-dark px-3 py-2 rounded-md text-sm font-medium">{t('accounts')}</Link>
                   <Link to="/materials" className="text-text-secondary-dark hover:text-text-primary-dark px-3 py-2 rounded-md text-sm font-medium">{t('materials')}</Link>
                   <Link to="/transactions" className="text-text-secondary-dark hover:text-text-primary-dark px-3 py-2 rounded-md text-sm font-medium">{t('transactions')}</Link>
-                  <Link to="/history" className="text-text-secondary-dark hover:text-text-primary-dark px-3 py-2 rounded-md text-sm font-medium">{t('history')}</Link>
                 </div>
               </div>
             )}
           </div>
           <div className="flex items-center">
+            <LanguageSwitcher />
             {user ? (
               <div className="ms-3 relative flex items-center">
                 {profile?.avatar_url && (

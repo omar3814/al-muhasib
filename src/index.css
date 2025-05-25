@@ -1,0 +1,59 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased; /* Smooths out fonts */
+  }
+  body {
+    @apply bg-navy-deep text-text-primary-dark min-h-screen;
+    direction: rtl; /* Default to Right-to-Left for Arabic */
+  }
+
+  /* Basic scrollbar styling for a more modern feel (optional, but nice) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #172A45; /* navy-light */
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334E68; /* slate-blue */
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #4A90E2; /* accent-blue */
+  }
+
+  /* Ensure inputs and textareas also get the dark theme styling by default */
+  input, textarea, select {
+    @apply bg-navy-light border-slate-blue text-text-primary-dark placeholder-text-secondary-dark;
+  }
+}
+
+/* If you decide to use a custom Arabic font like Noto Sans Arabic:
+1. Download the font files (e.g., .ttf or .woff2)
+2. Create a 'public/fonts' directory in your project.
+3. Place the font files in 'public/fonts/'.
+4. Uncomment and use the @font-face rules below.
+*/
+/*
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('/fonts/NotoSansArabic-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('/fonts/NotoSansArabic-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+body {
+  font-family: 'Noto Sans Arabic', sans-serif;
+}
+*/

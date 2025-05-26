@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiGrid, FiBox, FiRepeat, FiDollarSign, FiUser, FiCreditCard, FiList, FiX } from 'react-icons/fi';
 
-const Sidebar = ({ isOpen, onClose }) => {
+const Sidebar = ({ isOpen, onClose }) => { // onClose is called by MainLayout when it wants to close
   const { t, i18n } = useTranslation('common');
 
   const navCardBase = `flex items-center w-full px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ease-out transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-nuzum-sidebar-bg focus:ring-nuzum-accent-primary group`;
@@ -11,7 +11,11 @@ const Sidebar = ({ isOpen, onClose }) => {
   const getIconClasses = (isActive) => `me-3 h-5 w-5 transition-colors duration-200 ease-out ${isActive ? 'text-nuzum-accent-primary-content' : 'text-nuzum-text-secondary group-hover:text-nuzum-text-primary'}`;
 
   const NavItem = ({ to, icon: Icon, labelKey }) => (
-    <NavLink to={to} onClick={onClose} className={({isActive}) => getNavLinkClasses(isActive)}>
+    <NavLink 
+      to={to} 
+      onClick={onClose} // When a nav item is clicked, call the onClose passed from MainLayout
+      className={({isActive}) => getNavLinkClasses(isActive)}
+    >
       {({isActive}) => (<><Icon className={getIconClasses(isActive)} /><span>{t(labelKey)}</span></>)}
     </NavLink>
   );
@@ -22,35 +26,31 @@ const Sidebar = ({ isOpen, onClose }) => {
       <div 
         className={`
           fixed inset-0 z-30 bg-black bg-opacity-75 transition-opacity duration-300 ease-in-out
-          md:hidden  {/* Hidden on medium screens and up */}
+          md:hidden
           ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
         `}
-        onClick={onClose}
+        onClick={onClose} // Clicking overlay calls onClose passed from MainLayout
         aria-hidden="true"
       ></div>
 
       {/* Sidebar */}
       <aside 
         className={`
-          w-60 bg-nuzum-sidebar-bg text-nuzum-text-primary flex-shrink-0 flex flex-col shadow-2xl 
-          fixed inset-y-0 start-0 z-40 transform transition-transform duration-300 ease-in-out 
-          md:sticky md:top-0 md:h-screen md:border-e md:border-nuzum-border {/* Desktop: sticky, part of flow */}
-          md:w-64 {/* Ensure desktop width */}
+          w-60 md:w-64 bg-nuzum-sidebar-bg text-nuzum-text-primary flex-shrink-0 flex flex-col shadow-2xl 
+          fixed inset-y-0 start-0 z-40 transform transition-transform duration-300 ease-in-out
+          md:sticky md:top-0 md:h-screen md:border-e md:border-nuzum-border
+          md:translate-x-0 // On desktop, it's part of the flow and not translated by default
           
           ${i18n.dir() === 'rtl' ? 
             (isOpen ? 'translate-x-0' : 'translate-x-full') : 
             (isOpen ? 'translate-x-0' : '-translate-x-full')
           }
-          
-          md:translate-x-0 /* On desktop, always ensure it's not translated off-screen if it's part of layout */
-          ${ i18n.dir() === 'rtl' ? 'md:translate-x-0' : ''}
         `}
       >
-        {/* Close button for mobile, positioned absolutely within the sidebar */}
         <div className="md:hidden flex justify-end p-1 absolute top-1 end-1 z-50"> 
-            {isOpen && ( // Only show X button if sidebar is open
+            {isOpen && (
                  <button 
-                    onClick={onClose} 
+                    onClick={onClose} // Clicking X calls onClose passed from MainLayout
                     className="p-2 rounded-full text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-surface active:bg-nuzum-border"
                     aria-label={t('closeSidebar')}
                  >

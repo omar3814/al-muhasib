@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTranslation } from 'react-i18next'; // Make sure useTranslation is imported
+import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import { FiLogOut, FiUser, FiMenu, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import { supabase } from '../../lib/supabaseClient';
 import toast from 'react-hot-toast';
 
 const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
-  const { t, i18n } = useTranslation('common'); // i18n is correctly destructured here
+  const { t, i18n } = useTranslation('common');
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
@@ -21,7 +21,10 @@ const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
         <div className="flex items-center justify-between h-16">
           <div>
             <button
-              onClick={onToggleSidebar}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent click from bubbling up to any potential overlay
+                onToggleSidebar();
+              }}
               className="p-2 rounded-md text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-sidebar-bg focus:outline-none md:me-2"
               aria-label={sidebarOpen ? t('closeSidebar') : t('openSidebar')}
             >
@@ -48,34 +51,47 @@ const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
 };
 
 const MainLayout = () => {
+  // Initialize sidebarOpen based on screen size, but allow user to toggle it
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768); 
   const location = useLocation();
-  const { i18n } = useTranslation('common'); // Destructure i18n here for MainLayout's scope
+  const { i18n } = useTranslation('common'); // For RTL check in margin class
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const closeSidebar = () => setSidebarOpen(false);
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => !prev);
+  };
 
+  const closeSidebar = () => { // Specifically for closing, e.g., on nav item click or overlay click
+    setSidebarOpen(false);
+  };
+
+  // Adjust sidebar based on initial screen size and on resize
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
-        // No automatic opening on resize to desktop if user explicitly closed it,
-        // unless we add more complex logic to remember preference.
-        // For now, if resizing to desktop, and it's not open, it stays closed.
-        // If it *was* open (e.g. user just opened it), it remains open.
-        // Or, to always default to open on desktop resize:
-        // setSidebarOpen(true);
+        // On desktop, if you want it to always re-open on resize to desktop:
+        // setSidebarOpen(true); 
+        // Or, to remember the user's toggle state, this needs more complex logic with localStorage
+        // For now, let's keep it simple: if it was open, it stays open. If closed, it stays closed.
+        // If we resize from mobile (where it was forced closed) to desktop, let's open it.
+        if (!sidebarOpen && !localStorage.getItem('desktopSidebarWasManuallyClosed')) {
+             // setSidebarOpen(true); // This can be too aggressive.
+        }
+
       } else {
-        setSidebarOpen(false); 
+        setSidebarOpen(false); // Always close on mobile if resizing down
       }
     };
-    // Initial check for mobile
+
+    // Set initial state correctly for mobile
     if (window.innerWidth < 768) {
         setSidebarOpen(false);
     }
+    
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []); // Removed sidebarOpen from deps to avoid loop with setSidebarOpen
+  }, []); // sidebarOpen removed from deps here as handleResize sets it
 
+  // Close mobile sidebar on route change
   useEffect(() => {
     if (window.innerWidth < 768 && sidebarOpen) {
       setSidebarOpen(false); 
@@ -85,14 +101,14 @@ const MainLayout = () => {
 
   return (
     <div className="h-screen flex overflow-x-hidden bg-nuzum-bg-deep">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} /> 
+      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} /> 
       
       <div 
         className={`
           flex-1 flex flex-col 
           transition-all duration-300 ease-in-out
           overflow-y-auto 
-          ${sidebarOpen ? (i18n.dir() === 'rtl' ? 'md:mr-60 lg:md:mr-64' : 'md:ml-60 lg:md:ml-64') : (i18n.dir() === 'rtl' ? 'md:mr-0' : 'md:ml-0')}
+          ${sidebarOpen ? (i18n.dir() === 'rtl' ? 'md:mr-60 lg:mr-64' : 'md:ml-60 lg:ml-64') : (i18n.dir() === 'rtl' ? 'md:mr-0' : 'md:ml-0')}
         `}
       >
         <ContentHeader onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />

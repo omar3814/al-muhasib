@@ -6,14 +6,14 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true); // Master loading state
+  const [loading, setLoading] = useState(true); 
 
   // console.log(`AuthProvider Render: loading=${loading}, user=${user?.id}`);
 
   const fetchUserProfile = useCallback(async (currentUser) => {
     if (!currentUser) {
       setProfile(null);
-      return null; // Return null if no user
+      return null; 
     }
     // console.log(`AuthProvider: Fetching profile for user: ${currentUser.id}`);
     try {
@@ -22,73 +22,74 @@ export const AuthProvider = ({ children }) => {
         .select('*')
         .eq('id', currentUser.id)
         .single();
+
       if (error) {
         console.error('AuthProvider: Error fetching profile:', error.message);
-        return null; // Return null on error
+        setProfile(null);
+        return null;
+      } else {
+        // console.log('AuthProvider: Profile fetched:', data);
+        setProfile(data);
+        return data; 
       }
-      // console.log('AuthProvider: Profile fetched:', data);
-      return data; // Return profile data
     } catch (e) {
       console.error('AuthProvider: Exception fetching profile:', e.message);
-      return null; // Return null on exception
+      setProfile(null);
+      return null;
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    // console.log('AuthProvider: Main useEffect triggered.');
+    // console.log('AuthProvider: Main useEffect for auth state - MOUNTED');
+    setLoading(true); 
+    // console.log('AuthProvider: Main useEffect - setLoading(true)');
 
-    // This function handles setting all auth-related states
-    const handleAuthState = async (session) => {
+    const handleAuthProcessing = async (session) => {
       if (!mounted) return;
-
+      // console.log(`AuthProvider: handleAuthProcessing - Session user: ${session?.user?.id}`);
+      
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      // console.log(`AuthProvider: handleAuthState - User set to: ${currentUser?.id}`);
 
       if (currentUser) {
-        const userProfile = await fetchUserProfile(currentUser);
-        if (mounted) setProfile(userProfile);
+        await fetchUserProfile(currentUser);
       } else {
-        if (mounted) setProfile(null);
+        setProfile(null);
       }
       
-      // Crucially, set loading to false AFTER all async operations related to this auth state are done.
       if (mounted) {
-        setLoading(false);
-        // console.log('AuthProvider: handleAuthState - setLoading(false)');
+        setLoading(false); 
+        // console.log('AuthProvider: handleAuthProcessing - setLoading(false) - Auth check fully complete.');
       }
     };
-
-    // Get initial session state
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // console.log('AuthProvider: getSession() completed. Initial session user:', session?.user?.id);
-      handleAuthState(session); // Process this initial session
-    }).catch(err => {
-        if(mounted) {
-            console.error("AuthProvider: Error in initial getSession():", err.message);
-            setUser(null);
-            setProfile(null);
-            setLoading(false); // Ensure loading is false even on error
-        }
+      // console.log('AuthProvider: getSession() initial check completed. Session user:', session?.user?.id);
+      handleAuthProcessing(session);
+    }).catch(error => {
+      if (mounted) {
+        console.error("AuthProvider: Error in initial getSession():", error.message);
+        setUser(null);
+        setProfile(null);
+        setLoading(false); 
+        // console.log('AuthProvider: getSession() ERROR - setLoading(false)');
+      }
     });
 
-    // Subscribe to future auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        // console.log(`AuthProvider: onAuthStateChange - Event: ${_event}, New session user: ${session?.user?.id}`);
-        // We call handleAuthState for every change, including the initial one if it fires first.
-        // The setLoading(false) inside handleAuthState will ensure it's called.
-        handleAuthState(session);
+      async (_event, session) => {
+        // console.log(`AuthProvider: onAuthStateChange - Event: ${_event}, Session user: ${session?.user?.id}`);
+        handleAuthProcessing(session);
       }
     );
 
     return () => {
       mounted = false;
-      // console.log('AuthProvider: Main useEffect UNMOUNTING, unsubscribing.');
+      // console.log('AuthProvider: Main useEffect - UNMOUNTING, unsubscribing.');
       subscription?.unsubscribe();
     };
-  }, [fetchUserProfile]); // fetchUserProfile is stable
+  }, [fetchUserProfile]);
 
   const value = {
     user,
@@ -97,8 +98,10 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     refreshProfile: useCallback(async () => {
       if (user) {
-        const refreshedProfile = await fetchUserProfile(user);
-        setProfile(refreshedProfile);
+        // console.log('AuthProvider: refreshProfile called.');
+        setLoading(true); 
+        await fetchUserProfile(user);
+        setLoading(false);
       }
     }, [user, fetchUserProfile]),
   };

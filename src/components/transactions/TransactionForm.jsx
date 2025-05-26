@@ -4,291 +4,136 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Input from '../common/Input';
 import Button from '../common/Button';
-import { CURRENCIES, DEFAULT_CURRENCY } from '../../utils/currencies';
+import { HARDCODED_DEFAULT_CURRENCY, getCurrencyDisplayInfo, formatCurrency } from '../../utils/currencies'; 
 import toast from 'react-hot-toast';
+import { FiUploadCloud, FiImage, FiPaperclip } from 'react-icons/fi';
 
-const TransactionForm = ({ onSubmit, onCancel, initialData, isLoading }) => {
-  const { t } = useTranslation('common');
+const TransactionForm = ({ 
+    onSubmit, 
+    onCancel, 
+    initialData, 
+    isLoading, 
+    isTransferMode: externalIsTransferMode = false,
+    accounts: passedAccounts = [], 
+    materials: passedMaterials = [],
+    currencies: passedAvailableCurrencies = []
+}) => {
+  const { t, i18n } = useTranslation('common');
   const { user } = useAuth();
 
-  const [type, setType] = useState('expense'); // 'income' or 'expense'
+  const [type, setType] = useState(externalIsTransferMode ? 'transfer' : (initialData?.type || 'expense'));
   const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState(DEFAULT_CURRENCY.code);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [transactionCurrency, setTransactionCurrency] = useState(HARDCODED_DEFAULT_CURRENCY.code); 
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [materialId, setMaterialId] = useState(''); // Optional
-  const [materialQuantity, setMaterialQuantity] = useState(''); // Optional, for stock change
+  const [fromAccountId, setFromAccountId] = useState(''); 
+  const [toAccountId, setToAccountId] = useState('');
+  const [materialId, setMaterialId] = useState('');
+  const [materialQuantity, setMaterialQuantity] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [existingImageUrl, setExistingImageUrl] = useState(null);
+  const fileInputRef = React.useRef(null);
+  
+  const [accounts, setAccounts] = useState(passedAccounts);
+  const [materials, setMaterials] = useState(passedMaterials);
+  const [availableCurrencies, setAvailableCurrencies] = useState(passedAvailableCurrencies);
 
-  const [accounts, setAccounts] = useState([]);
-  const [materials, setMaterials] = useState([]);
+  const [availableToAccounts, setAvailableToAccounts] = useState([]);
   const [errors, setErrors] = useState({});
+  const [sourceAccountDetails, setSourceAccountDetails] = useState(null);
 
-  // Fetch accounts and materials for dropdowns
-  const fetchDataForDropdowns = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data: accountsData, error: accountsError } = await supabase
-        .from('accounts')
-        .select('id, name, currency') // Fetch currency to potentially pre-select transaction currency
-        .eq('user_id', user.id);
-      if (accountsError) throw accountsError;
-      setAccounts(accountsData || []);
-
-      const { data: materialsData, error: materialsError } = await supabase
-        .from('materials')
-        .select('id, name, unit_type')
-        .eq('user_id', user.id);
-      if (materialsError) throw materialsError;
-      setMaterials(materialsData || []);
-
-    } catch (error) {
-      console.error("Error fetching data for transaction form:", error.message);
-      toast.error(t('errorFetchingDropdownData') || "Could not load data for form.");
-      // Add "errorFetchingDropdownData": "تعذر تحميل البيانات للنموذج."
-    }
-  }, [user, t]);
-
-  useEffect(() => {
-    fetchDataForDropdowns();
-  }, [fetchDataForDropdowns]);
+  useEffect(() => { setType(externalIsTransferMode ? 'transfer' : (initialData?.type || 'expense')); }, [externalIsTransferMode, initialData]);
+  useEffect(() => { setAccounts(passedAccounts || []); setMaterials(passedMaterials || []); setAvailableCurrencies(passedAvailableCurrencies || []);}, [passedAccounts, passedMaterials, passedAvailableCurrencies]);
 
   useEffect(() => {
     if (initialData) {
-      // Prefill form if editing (basic support for now, complex edits need care)
-      setType(initialData.type || 'expense');
       setAmount(String(initialData.amount || ''));
-      setCurrency(initialData.currency || DEFAULT_CURRENCY.code);
+      setTransactionCurrency(initialData.currency || HARDCODED_DEFAULT_CURRENCY.code);
       setDate(initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
       setNotes(initialData.notes || '');
-      setAccountId(initialData.account_id || '');
+      setFromAccountId(initialData.account_id || '');
+      setToAccountId(initialData.to_account_id || '');
       setMaterialId(initialData.material_id || '');
       setMaterialQuantity(String(initialData.material_quantity_affected || ''));
+      setExistingImageUrl(initialData.image_url || null);
+      setImagePreview(initialData.image_url || null);
+      setImageFile(null);
     } else {
-        // Reset for new form
-        setType('expense');
-        setAmount('');
-        setCurrency(DEFAULT_CURRENCY.code);
-        setDate(new Date().toISOString().split('T')[0]);
-        setNotes('');
-        setAccountId('');
-        setMaterialId('');
-        setMaterialQuantity('');
+      setAmount('');
+      setDate(new Date().toISOString().split('T')[0]);
+      setNotes('');
+      setFromAccountId('');
+      setToAccountId('');
+      setMaterialId('');
+      setMaterialQuantity('');
+      setImageFile(null);
+      setImagePreview(null);
+      setExistingImageUrl(null);
+      if (!fromAccountId && availableCurrencies.length > 0) {
+          const jod = availableCurrencies.find(c => c.code === 'JOD');
+          setTransactionCurrency(jod ? jod.code : availableCurrencies[0].code);
+      } else if (!fromAccountId) {
+          setTransactionCurrency(HARDCODED_DEFAULT_CURRENCY.code);
+      }
     }
-  }, [initialData]);
+  }, [initialData, fromAccountId, availableCurrencies]);
   
-  // When account is selected, update the transaction currency to match the account's currency
   useEffect(() => {
-    if(accountId && accounts.length > 0) {
-        const selectedAccount = accounts.find(acc => acc.id === accountId);
-        if (selectedAccount && selectedAccount.currency) {
-            setCurrency(selectedAccount.currency);
+    const currentFromAccount = accounts.find(acc => acc.id === fromAccountId);
+    setSourceAccountDetails(currentFromAccount || null);
+    if (currentFromAccount) {
+      setTransactionCurrency(currentFromAccount.currency);
+      if (type === 'transfer') {
+        setAvailableToAccounts(accounts.filter(acc => acc.id !== fromAccountId && acc.currency === currentFromAccount.currency));
+        if (toAccountId && !accounts.find(acc => acc.id === toAccountId && acc.id !== fromAccountId && acc.currency === currentFromAccount.currency)) {
+          setToAccountId('');
         }
+      }
+    } else {
+      if (!initialData && !fromAccountId && availableCurrencies.length > 0) {
+          const jod = availableCurrencies.find(c => c.code === 'JOD');
+          setTransactionCurrency(jod ? jod.code : availableCurrencies[0].code);
+      } else if (!initialData && !fromAccountId) {
+           setTransactionCurrency(HARDCODED_DEFAULT_CURRENCY.code);
+      }
+      if (type === 'transfer') { setAvailableToAccounts(accounts.filter(acc => acc.id !== fromAccountId)); }
     }
-  }, [accountId, accounts]);
+  }, [fromAccountId, accounts, type, toAccountId, initialData, availableCurrencies]);
 
-
-  const validate = () => {
-    const newErrors = {};
-    if (!amount.trim() || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      newErrors.amount = t('invalidAmountPositiveError') || 'Please enter a valid positive amount.';
-      // Add "invalidAmountPositiveError": "الرجاء إدخال مبلغ صحيح وموجب."
-    }
-    if (!date) newErrors.date = t('requiredField');
-    if (!accountId) newErrors.accountId = t('selectAccountError') || 'Please select an account.';
-    // Add "selectAccountError": "الرجاء اختيار حساب."
-    
-    if (materialId) { // If a material is selected, quantity is required
-        if (materialQuantity.trim() === '' || isNaN(parseInt(materialQuantity)) || parseInt(materialQuantity) === 0) {
-            newErrors.materialQuantity = t('invalidMaterialQuantityError') || 'Please enter a valid quantity for the material.';
-            // Add "invalidMaterialQuantityError": "الرجاء إدخال كمية صالحة للمادة."
-        }
-    } else if (materialQuantity.trim() !== '') { // If quantity is entered, material must be selected
-        newErrors.materialId = t('selectMaterialForQuantityError') || 'Please select a material if specifying quantity.';
-        // Add "selectMaterialForQuantityError": "الرجاء اختيار مادة إذا تم تحديد الكمية."
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    const selectedMaterial = materials.find(m => m.id === materialId);
-    
-    // For expenses involving material, quantity is negative. For income, positive.
-    // This simple logic assumes "selling" is income, "buying/using" is expense.
-    // Adjust if your accounting model is different (e.g. cost of goods sold for income).
-    let finalMaterialQuantityAffected = materialId ? parseInt(materialQuantity) : null;
-    if (materialId && finalMaterialQuantityAffected !== null) {
-        if (type === 'expense') {
-            finalMaterialQuantityAffected = -Math.abs(finalMaterialQuantityAffected); // Selling material
-        } else if (type === 'income') {
-             finalMaterialQuantityAffected = Math.abs(finalMaterialQuantityAffected); // Buying/Adding material
-        }
-    }
-
-
-    onSubmit({
-      type,
-      amount: parseFloat(amount),
-      currency,
-      date,
-      notes: notes.trim(),
-      account_id: accountId,
-      material_id: materialId || null, // Ensure null if empty
-      material_quantity_affected: finalMaterialQuantityAffected,
-      ...(initialData && initialData.id && { id: initialData.id }),
-    });
-  };
-  
+  const handleImageChange = (e) => { const file = e.target.files[0]; if (file) { if (file.size > 5 * 1024 * 1024) { setErrors(prev => ({ ...prev, image: t('imageSizeTooLarge') })); setImageFile(null); setImagePreview(existingImageUrl || null); if(fileInputRef.current) fileInputRef.current.value = ''; return; } if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setErrors(prev => ({ ...prev, image: t('invalidImageType') })); setImageFile(null); setImagePreview(existingImageUrl || null); if(fileInputRef.current) fileInputRef.current.value = ''; return; } setErrors(prev => ({ ...prev, image: '' })); setImageFile(file); setImagePreview(URL.createObjectURL(file)); }};
+  const validate = () => { const newErrors = {}; if (!fromAccountId) newErrors.fromAccountId = t('requiredField'); if (type === 'transfer' && !toAccountId) newErrors.toAccountId = t('selectDestinationAccountError'); if (type === 'transfer' && fromAccountId && toAccountId && fromAccountId === toAccountId) newErrors.toAccountId = t('sourceDestSameError'); if (!amount.trim() || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) newErrors.amount = t('invalidAmountPositiveError'); if (!date) newErrors.date = t('requiredField'); if (sourceAccountDetails && sourceAccountDetails.currency !== transactionCurrency) { if (type === 'transfer') newErrors.currency = t('transferCurrencyMustMatchSource'); } if (sourceAccountDetails && parseFloat(sourceAccountDetails.balance) < parseFloat(amount) && type !== 'income') { newErrors.amount = t('insufficientFundsError'); } if (materialId && type !== 'transfer') { if (materialQuantity.trim() === '' || isNaN(parseInt(materialQuantity)) || parseInt(materialQuantity) === 0) newErrors.materialQuantity = t('invalidMaterialQuantityError'); } else if (materialQuantity.trim() !== '' && type !== 'transfer' && !materialId) { newErrors.materialId = t('selectMaterialForQuantityError');} setErrors(newErrors); return Object.keys(newErrors).length === 0;};
+  const handleSubmit = async (e) => { e.preventDefault(); if (!validate()) return; if (!user || !user.id) { toast.error(t('userNotAuthenticatedError')); return; } let uploadedTransactionImageUrl = existingImageUrl; if (imageFile) { const fileExt = imageFile.name.split('.').pop(); const fileName = `tx-${Date.now()}.${fileExt}`; const filePath = `${user.id}/${fileName}`; if (existingImageUrl && user && user.id) { try { const oldImageKey = existingImageUrl.substring(existingImageUrl.indexOf(`${user.id}/`)); if (oldImageKey.startsWith(`${user.id}/`)) await supabase.storage.from('transaction-images').remove([oldImageKey]); } catch(imgErr){ console.warn("Failed to delete old transaction image", imgErr);}} const { error: uploadError } = await supabase.storage.from('transaction-images').upload(filePath, imageFile); if (uploadError) { toast.error(t('imageUploadFailed') + `: ${uploadError.message}`); return; } const { data: urlData } = supabase.storage.from('transaction-images').getPublicUrl(filePath); uploadedTransactionImageUrl = urlData?.publicUrl; } const commonData = { amount: parseFloat(amount), currency: transactionCurrency, date, notes: notes.trim(), image_url: uploadedTransactionImageUrl, }; if (type === 'transfer') { onSubmit({ isTransfer: true, fromAccountId, toAccountId, ...commonData }); } else { let finalMaterialQuantityAffected = materialId ? parseInt(materialQuantity) : null; if (materialId && finalMaterialQuantityAffected !== null) { finalMaterialQuantityAffected = type === 'expense' ? -Math.abs(finalMaterialQuantityAffected) : Math.abs(finalMaterialQuantityAffected); } onSubmit({ isTransfer: false, type, account_id: fromAccountId, material_id: materialId || null, material_quantity_affected: finalMaterialQuantityAffected, ...commonData }); } };
   const selectedMaterialUnit = materialId ? materials.find(m => m.id === materialId)?.unit_type : '';
+  const typeButtonBaseClasses = "flex-1 px-4 py-2.5 text-sm font-medium transition-colors duration-150 ease-in-out focus:z-10 focus:outline-none focus:ring-2 focus:ring-nuzum-accent-primary focus:ring-opacity-60";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="transactionType" className="block text-sm font-medium text-text-secondary-dark mb-1">
-            {t('transactionType')} <span className="text-red-400">*</span>
-          </label>
-          <select
-            id="transactionType"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full px-3 py-2.5 bg-navy-light border border-slate-blue rounded-lg"
-          >
-            <option value="expense">{t('expense')}</option>
-            <option value="income">{t('income')}</option>
-          </select>
-        </div>
-        <Input
-          id="date"
-          label={t('date')}
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          error={errors.date}
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          id="amount"
-          label={t('amount')}
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          step="0.01"
-          min="0.01"
-          placeholder="0.00"
-          error={errors.amount}
-          required
-        />
-         <div>
-          <label htmlFor="transactionCurrency" className="block text-sm font-medium text-text-secondary-dark mb-1">
-            {t('currency')} <span className="text-red-400">*</span>
-          </label>
-          <select
-            id="transactionCurrency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className={`w-full px-3 py-2.5 bg-navy-light border rounded-lg shadow-sm ${errors.currency ? 'border-red-500' : 'border-slate-blue'}`}
-            required
-            disabled // Currency is now derived from selected account
-          >
-            {CURRENCIES.map(c => (
-              <option key={c.code} value={c.code}>{t(c.name_key)} ({c.symbol})</option>
-            ))}
-          </select>
-          {errors.currency && <p className="mt-1 text-xs text-red-400">{errors.currency}</p>}
-        </div>
-      </div>
-
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <label htmlFor="accountId" className="block text-sm font-medium text-text-secondary-dark mb-1">
-          {t('linkedAccount')} <span className="text-red-400">*</span>
-        </label>
-        <select
-          id="accountId"
-          value={accountId}
-          onChange={(e) => setAccountId(e.target.value)}
-          className={`w-full px-3 py-2.5 bg-navy-light border rounded-lg shadow-sm ${errors.accountId ? 'border-red-500' : 'border-slate-blue'}`}
-          required
-        >
-          <option value="">{t('selectAccount')}</option>
-          {accounts.map(acc => (
-            <option key={acc.id} value={acc.id}>{acc.name} ({t(acc.currency.toLowerCase()) || acc.currency})</option>
-          ))}
-        </select>
-        {errors.accountId && <p className="mt-1 text-xs text-red-400">{errors.accountId}</p>}
-      </div>
-      
-      <hr className="border-slate-blue my-6"/>
-
-      <p className="text-sm font-medium text-text-secondary-dark -mb-2">{t('optionalMaterialSection') || 'Material Details (Optional)'}</p>
-      {/* Add "optionalMaterialSection": "تفاصيل المادة (اختياري)" */}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-        <div>
-          <label htmlFor="materialId" className="block text-sm font-medium text-text-secondary-dark mb-1">
-            {t('linkedMaterial')}
-          </label>
-          <select
-            id="materialId"
-            value={materialId}
-            onChange={(e) => setMaterialId(e.target.value)}
-            className={`w-full px-3 py-2.5 bg-navy-light border rounded-lg shadow-sm ${errors.materialId ? 'border-red-500' : 'border-slate-blue'}`}
-          >
-            <option value="">{t('selectMaterialOptional') || '-- Select Material (Optional) --'}</option>
-             {/* Add "selectMaterialOptional": "-- اختر المادة (اختياري) --" */}
-            {materials.map(mat => (
-              <option key={mat.id} value={mat.id}>{mat.name}</option>
-            ))}
-          </select>
-          {errors.materialId && <p className="mt-1 text-xs text-red-400">{errors.materialId}</p>}
+        <label className="block text-sm font-medium text-nuzum-text-secondary mb-1">{t('transactionType')} <span className="text-nuzum-danger">*</span></label>
+        <div className="flex rounded-lg shadow-sm border border-nuzum-border overflow-hidden">
+            <button type="button" onClick={() => setType('expense')}
+                className={`${typeButtonBaseClasses} ${type === 'expense' ? 'bg-nuzum-danger text-white' : 'text-nuzum-text-secondary bg-nuzum-surface hover:bg-nuzum-border'} border-e border-nuzum-border`}>
+                {t('expense')}
+            </button>
+            <button type="button" onClick={() => setType('income')}
+                className={`${typeButtonBaseClasses} ${type === 'income' ? 'bg-nuzum-success text-white' : 'text-nuzum-text-secondary bg-nuzum-surface hover:bg-nuzum-border'} border-e border-nuzum-border`}>
+                {t('income')}
+            </button>
+            <button type="button" onClick={() => setType('transfer')}
+                className={`${typeButtonBaseClasses} ${type === 'transfer' ? 'bg-nuzum-accent-primary text-nuzum-accent-primary-content' : 'text-nuzum-text-secondary bg-nuzum-surface hover:bg-nuzum-border'}`}>
+                {t('transfer')}
+            </button>
         </div>
-        <Input
-            id="materialQuantity"
-            label={`${t('quantity')} ${selectedMaterialUnit ? `(${t(selectedMaterialUnit.toLowerCase()) || selectedMaterialUnit})` : ''}`}
-            type="number"
-            value={materialQuantity}
-            onChange={(e) => setMaterialQuantity(e.target.value)}
-            step="1"
-            placeholder="0"
-            error={errors.materialQuantity}
-            disabled={!materialId} // Only enable if a material is selected
-          />
       </div>
-
-      <hr className="border-slate-blue my-6"/>
-
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-text-secondary-dark mb-1">
-          {t('notes')} ({t('optional')})
-        </label>
-        <textarea
-          id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows="3"
-          className="w-full px-3 py-2 bg-navy-light border border-slate-blue rounded-lg shadow-sm"
-          placeholder={t('transactionNotesPlaceholder') || "E.g., Payment for services, Purchase of office supplies"}
-          // Add "transactionNotesPlaceholder": "مثال: دفعة مقابل خدمات، شراء لوازم مكتبية"
-        ></textarea>
-      </div>
-
-      <div className="flex justify-end space-s-3 pt-4">
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>
-          {t('cancel')}
-        </Button>
-        <Button type="submit" variant="primary" isLoading={isLoading} disabled={isLoading}>
-          {initialData ? t('saveChanges') : t('addTransaction')}
-        </Button>
-        {/* Add "addTransaction": "إضافة معاملة" */}
-      </div>
+      <Input id="date" label={t('date')} type="date" value={date} onChange={(e) => setDate(e.target.value)} error={errors.date} required />
+      <div><label htmlFor="fromAccountId" className="block text-sm font-medium text-nuzum-text-secondary mb-1">{type === 'transfer' ? t('fromAccount') : t('account')} <span className="text-nuzum-danger">*</span></label><select id="fromAccountId" value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)} className={`input-style ${errors.fromAccountId ? 'border-nuzum-danger' : ''}`} required ><option value="">{t('selectAccount')}</option>{(accounts || []).map(acc => (<option key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance, acc.currency, t, availableCurrencies, i18n.language === 'ar' ? 'ar-EG-u-nu-latn' : undefined)})</option>))}</select>{errors.fromAccountId && <p className="mt-1 text-xs text-nuzum-danger">{errors.fromAccountId}</p>}</div>
+      {type === 'transfer' && (<div><label htmlFor="toAccountId" className="block text-sm font-medium text-nuzum-text-secondary mb-1">{t('toAccount')} <span className="text-nuzum-danger">*</span></label><select id="toAccountId" value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} className={`input-style ${errors.toAccountId ? 'border-nuzum-danger' : ''}`} required disabled={!fromAccountId || availableToAccounts.length === 0}><option value="">{t('selectAccount')}</option>{availableToAccounts.map(acc => (<option key={acc.id} value={acc.id}>{acc.name} ({getCurrencyDisplayInfo(acc.currency, availableCurrencies, t).symbol})</option>))}</select>{errors.toAccountId && <p className="mt-1 text-xs text-nuzum-danger">{errors.toAccountId}</p>}{!fromAccountId && <p className="mt-1 text-xs text-nuzum-text-secondary">{t('selectSourceFirst')}</p>}{fromAccountId && availableToAccounts.length === 0 && <p className="mt-1 text-xs text-nuzum-text-secondary">{t('noMatchingCurrencyAccounts')}</p>}</div>)}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start"><Input id="amount" label={t('amount')} type="number" value={amount} onChange={(e) => setAmount(e.target.value)} step="0.01" min="0.01" placeholder="0.00" error={errors.amount} required inputClassName={sourceAccountDetails && parseFloat(amount) > parseFloat(sourceAccountDetails.balance) && type !== 'income' ? '!border-nuzum-danger' : ''}/>{sourceAccountDetails && (<div className="pt-1 md:pt-7"><p className={`text-xs ${sourceAccountDetails && parseFloat(amount) > parseFloat(sourceAccountDetails.balance) && type !== 'income' ? 'text-nuzum-danger' : 'text-nuzum-text-secondary'}`}>{t('availableBalance')}: {formatCurrency(sourceAccountDetails.balance, sourceAccountDetails.currency, t, availableCurrencies, i18n.language === 'ar' ? 'ar-EG-u-nu-latn' : undefined)}</p></div>)}</div>
+      <div><label htmlFor="transactionCurrencyDisplay" className="block text-sm font-medium text-nuzum-text-secondary mb-1">{t('currency')}</label><Input id="transactionCurrencyDisplay" value={transactionCurrency ? (getCurrencyDisplayInfo(transactionCurrency, availableCurrencies, t).name + ` (${transactionCurrency})`) : (type === 'transfer' ? t('selectSourceAccountFirst') : t('selectAccountFirst'))} disabled inputClassName="bg-nuzum-bg-deep cursor-not-allowed"/>{errors.currency && <p className="mt-1 text-xs text-nuzum-danger">{errors.currency}</p>}</div>
+      {type !== 'transfer' && (<><hr className="border-pa-dark-border my-5"/><p className="text-sm font-medium text-pa-text-secondary -mb-2">{t('optionalMaterialSection')}</p><div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"> <div> <label htmlFor="materialId" className="block text-sm font-medium text-pa-text-secondary mb-1">{t('linkedMaterial')}</label> <select id="materialId" value={materialId} onChange={(e) => setMaterialId(e.target.value)} className={`input-style ${errors.materialId ? 'border-pa-danger' : ''}`} > <option value="">{t('selectMaterialOptional')}</option> {materials.map(mat => (<option key={mat.id} value={mat.id}>{mat.name}</option>))} </select> {errors.materialId && <p className="mt-1 text-xs text-pa-danger">{errors.materialId}</p>} </div> <Input id="materialQuantity" label={`${t('quantity')} ${selectedMaterialUnit ? `(${t(selectedMaterialUnit.toLowerCase()) || selectedMaterialUnit})` : ''}`} type="number" value={materialQuantity} onChange={(e) => setMaterialQuantity(e.target.value)} step="1" placeholder="0" error={errors.materialQuantity} disabled={!materialId} /> </div><hr className="border-pa-dark-border my-5"/><div> <label className="block text-sm font-medium text-pa-text-secondary mb-1"> {t('transactionImageOptional')} ({t('optional')}) </label> <div className="mt-1 flex items-center space-s-4 p-3 border-2 border-dashed border-pa-dark-border rounded-lg hover:border-pa-accent-interactive"> <div className="shrink-0 h-24 w-24 bg-pa-dark-bg rounded-md flex items-center justify-center overflow-hidden"> {imagePreview ? ( <img src={imagePreview} alt={t('imagePreview')} className="h-full w-full object-cover" /> ) : ( <FiPaperclip className="h-12 w-12 text-pa-text-placeholder" /> )} </div> <div className="flex-1"> <input type="file" id="transactionImage" accept="image/png, image/jpeg, image/webp" onChange={handleImageChange} className="hidden" ref={fileInputRef} /> <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} leftIcon={<FiUploadCloud />}> {imageFile || existingImageUrl ? t('changeImage') : t('uploadImage')} </Button> {imageFile && (<Button type="button" variant="secondary" size="sm" onClick={() => { setImageFile(null); setImagePreview(existingImageUrl || null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="ms-2 !py-1 !px-2">{t('clearSelection')}</Button>)} <p className="text-xs text-pa-text-secondary mt-2">{t('imageUploadNote')}</p> {errors.image && <p className="mt-1 text-xs text-pa-danger">{errors.image}</p>} </div> </div> </div></>)}
+      <div className="mt-4"> <label htmlFor="notes" className="block text-sm font-medium text-pa-text-secondary mb-1">{t('notes')} ({t('optional')})</label> <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows="3" className="input-style" placeholder={type === 'transfer' ? t('transferNotesPlaceholder') : t('transactionNotesPlaceholder')}></textarea> </div>
+      <div className="flex justify-end space-s-3 pt-6"> <Button type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>{t('cancel')}</Button> <Button type="submit" variant="accent" isLoading={isLoading} disabled={isLoading}>{initialData ? t('saveChanges') : (type === 'transfer' ? t('confirmTransfer') : t('addTransaction'))}</Button> </div>
     </form>
   );
 };

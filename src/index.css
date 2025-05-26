@@ -4,33 +4,65 @@
 
 @layer base {
   html {
-    @apply antialiased; 
-  }
-  body {
-    @apply bg-navy-deep text-text-primary-dark min-h-screen;
+    @apply antialiased scroll-smooth;
   }
 
+  body {
+    @apply bg-pa-dark-bg text-pa-text-primary min-h-screen font-sans;
+  }
+
+  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: #172A45;
+    background: theme('colors.pa-dark-bg / 90%'); 
   }
   ::-webkit-scrollbar-thumb {
-    background: #334E68;
+    background: theme('colors.pa-dark-border'); 
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #4A90E2;
+    background: theme('colors.pa-text-secondary');
   }
 
-  input, textarea, select {
-    @apply bg-navy-light border-slate-blue text-text-primary-dark placeholder-text-secondary-dark;
+  /* Base styling for form elements */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    @apply bg-pa-dark-surface border-pa-dark-border text-pa-text-primary 
+           placeholder-pa-text-placeholder rounded-lg
+           focus:ring-2 focus:ring-pa-accent-interactive focus:border-pa-accent-interactive;
   }
-  .input-style {
-    @apply w-full px-3 py-2.5 bg-navy-light border border-slate-blue rounded-lg shadow-sm 
-            focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-accent-blue 
-            text-text-primary-dark placeholder-text-secondary-dark;
+  
+  select {
+    @apply appearance-none bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23A0A0A0' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); /* pa-text-secondary color for arrow */
+    [dir="rtl"] & {
+        background-position: left 0.5rem center;
+    }
+    [dir="ltr"] & {
+        background-position: right 0.5rem center;
+    }
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem; 
+    padding-left: 0.75rem; 
+    [dir="rtl"] & {
+        padding-right: 0.75rem;
+        padding-left: 2.5rem; 
+    }
+  }
+
+  .input-style { /* For consistent padding/focus if needed across more elements */
+    @apply w-full px-4 py-2.5 
+           bg-pa-dark-surface border border-pa-dark-border rounded-lg 
+           shadow-sm 
+           focus:outline-none focus:ring-2 focus:ring-pa-accent-interactive focus:border-pa-accent-interactive 
+           text-pa-text-primary placeholder-pa-text-placeholder;
   }
 }

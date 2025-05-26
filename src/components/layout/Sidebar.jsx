@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiGrid, FiBox, FiRepeat, FiDollarSign, FiUser, FiCreditCard } from 'react-icons/fi';
+// Added FiList as an example icon for Debts, you can choose another one
+import { FiGrid, FiBox, FiRepeat, FiDollarSign, FiUser, FiSettings, FiCreditCard, FiList } from 'react-icons/fi'; 
 
 const Sidebar = () => {
   const { t } = useTranslation('common');
@@ -20,7 +21,7 @@ const Sidebar = () => {
   const NavItem = ({ to, icon: Icon, labelKey }) => {
     return (
       <NavLink to={to} className={({isActive}) => getNavLinkClasses(isActive)}>
-        {({isActive}) => ( // Use the render prop pattern for NavLink children
+        {({isActive}) => (
           <>
             <Icon className={getIconClasses(isActive)} />
             <span>{t(labelKey)}</span>
@@ -43,6 +44,7 @@ const Sidebar = () => {
         <NavItem to="/accounts" icon={FiDollarSign} labelKey="accounts" />
         <NavItem to="/materials" icon={FiBox} labelKey="materials" />
         <NavItem to="/transactions" icon={FiRepeat} labelKey="transactions" />
+        <NavItem to="/debts" icon={FiList} labelKey="debts" /> {/* New NavItem for Debts */}
       </nav>
       <div className="px-4 pt-4 pb-2 mt-auto border-t border-nuzum-border space-y-1"> 
         <p className="px-4 pt-2 pb-1 text-xs font-semibold text-nuzum-text-placeholder uppercase tracking-wider">{t('settings')}</p>

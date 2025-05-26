@@ -353,5 +353,9 @@
   "paymentReceivedForDebt": "دفعة مستلمة لدين",
   "paymentRecordedSuccessfully": "تم تسجيل الدفعة بنجاح!",
   "recordDebtPayment": "تسجيل دفعة دين",
-  "payment": "دفع"
+  "payment": "دفع",
+  "debtDeleteFailedTransactionsExist": "لا يمكن حذف الدين: توجد معاملات دفع مرتبطة به.",
+  "errorUpdatingAccountBalance": "خطأ في تحديث رصيد الحساب بعد الشراء.",
+  "openSidebar": "فتح الشريط الجانبي",
+  "closeSidebar": "إغلاق الشريط الجانبي"
 }

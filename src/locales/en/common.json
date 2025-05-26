@@ -353,5 +353,10 @@
   "paymentReceivedForDebt": "Payment received for debt",
   "paymentRecordedSuccessfully": "Payment recorded successfully!",
   "recordDebtPayment": "Record Debt Payment",
-  "payment": "Payment"
+  "payment": "Payment",
+  "debtDeleteFailedTransactionsExist": "Cannot delete debt: it has linked payment transactions.",
+  "errorUpdatingAccountBalance": "Error updating account balance after purchase.",
+  "openSidebar": "Open sidebar",
+  "closeSidebar": "Close sidebar",
+  "paymentAccountCurrencyMismatch": "Payment account currency must match debt currency."
 }

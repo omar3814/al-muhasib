@@ -19,39 +19,39 @@ const Sidebar = ({ isOpen, onClose }) => {
   return (
     <>
       {/* Overlay for mobile when sidebar is open */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden" 
-          onClick={onClose}
-          aria-hidden="true"
-        ></div>
-      )}
+      <div 
+        className={`
+          fixed inset-0 z-30 bg-black bg-opacity-50 transition-opacity duration-300 ease-in-out
+          md:hidden 
+          ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+        `}
+        onClick={onClose}
+        aria-hidden="true"
+      ></div>
 
       {/* Sidebar */}
       <aside 
         className={`
           w-60 md:w-64 bg-nuzum-sidebar-bg text-nuzum-text-primary flex-shrink-0 flex flex-col shadow-2xl border-e border-nuzum-border
-          fixed inset-y-0 start-0 z-40 transform transition-transform duration-300 ease-in-out
-          md:sticky md:top-0 md:h-screen md:transform-none /* Desktop: sticky, part of flow, no translate */
+          fixed inset-y-0 start-0 z-40 transform transition-transform duration-300 ease-in-out 
+          md:sticky md:top-0 md:h-screen md:translate-x-0 /* Desktop styles: sticky and always translated in */
           
           ${i18n.dir() === 'rtl' ? 
-            (isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0') :  // For mobile slide, desktop always 0 if shown
-            (isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0')
+            (isOpen ? 'translate-x-0' : 'translate-x-full') :  // RTL: slides from right
+            (isOpen ? 'translate-x-0' : '-translate-x-full')    // LTR: slides from left
           }
         `}
-        // The isOpen prop will now primarily control whether MainLayout gives it space on desktop
-        // On mobile, it controls the slide-in.
+        // For desktop, the actual "hiding" (making space) is handled by MainLayout adjusting its own margin/width
+        // This `aside` for desktop will effectively always be translate-x-0 when visible
       >
-        {/* Close button for mobile */}
-        <div className="md:hidden flex justify-end p-2 absolute top-0 end-0 z-50">
-            {isOpen && (
-                 <button onClick={onClose} className="p-2 text-nuzum-text-secondary hover:text-nuzum-text-primary">
-                    <FiX size={24} />
-                </button>
-            )}
+        {/* Close button for mobile, positioned absolutely within the sidebar */}
+        <div className="md:hidden absolute top-2 end-2 z-50"> 
+            <button onClick={onClose} className="p-2 rounded-full text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-surface">
+                <FiX size={24} />
+            </button>
         </div>
 
-        <div className="h-20 flex items-center justify-center px-4 border-b border-nuzum-border mb-4 md:mt-0 mt-[-2rem]"> {/* Adjusted mt for close button space */}
+        <div className="h-20 flex items-center justify-center px-4 border-b border-nuzum-border mb-4 pt-8 md:pt-0"> {/* Added padding top for mobile to not overlap X button */}
           <Link to="/" className="flex flex-col items-center text-nuzum-text-primary hover:opacity-80 py-2" onClick={onClose}>
             <img className="h-10 w-auto mb-1" src="/favicon.png" alt={t('appName')} />
             <span className="font-bold text-lg tracking-tight">{t('appName')}</span>

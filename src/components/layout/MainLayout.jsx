@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'; // Removed Link as it wasn't used directly
 import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -13,24 +13,28 @@ const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => { /* ... same ... */ const { error } = await supabase.auth.signOut(); if (error) { toast.error(t('operationFailed') + `: ${error.message}`); } else { toast.success(t('logoutSuccess')); navigate('/login'); }};
+  const handleLogout = async () => { const { error } = await supabase.auth.signOut(); if (error) { toast.error(t('operationFailed') + `: ${error.message}`); } else { toast.success(t('logoutSuccess')); navigate('/login'); }};
 
   return (
-    <header className="bg-nuzum-surface shadow-card sticky top-0 z-30 border-b border-nuzum-border">
+    <header className="bg-nuzum-surface shadow-card sticky top-0 z-20 border-b border-nuzum-border"> {/* z-index adjusted if needed */}
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
+          {/* Sidebar Toggle Button */}
           <div>
             <button
               onClick={onToggleSidebar}
-              className="p-2 rounded-md text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-sidebar-bg focus:outline-none"
-              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              className="p-2 rounded-md text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-sidebar-bg focus:outline-none md:me-2" // Added md:me-2 for spacing when sidebar is static
+              aria-label={sidebarOpen ? t('closeSidebar') : t('openSidebar')}
+              // Add "closeSidebar": "إغلاق الشريط الجانبي" and "openSidebar": "فتح الشريط الجانبي" to translations
             >
-              {sidebarOpen ? 
-                (i18n.dir() === 'rtl' ? <FiChevronsRight size={22} /> : <FiChevronsLeft size={22} />) :
-                (i18n.dir() === 'rtl' ? <FiChevronsLeft size={22} /> : <FiChevronsRight size={22} />)
-              }
+              {sidebarOpen && i18n.dir() === 'ltr' && <FiChevronsLeft size={24} />}
+              {sidebarOpen && i18n.dir() === 'rtl' && <FiChevronsRight size={24} />}
+              {!sidebarOpen && i18n.dir() === 'ltr' && <FiChevronsRight size={24} />}
+              {!sidebarOpen && i18n.dir() === 'rtl' && <FiChevronsLeft size={24} />}
             </button>
           </div>
+          
+          {/* Right Aligned Items */}
           <div className="flex items-center space-s-3 sm:space-s-4">
             <LanguageSwitcher />
             {user && (
@@ -48,39 +52,60 @@ const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
 };
 
 const MainLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768); 
+  // Default sidebar to closed on small screens, open on larger screens (md breakpoint: 768px)
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const location = useLocation();
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const closeSidebarOnMobile = () => { if (window.innerWidth < 768) setSidebarOpen(false); };
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
-  useEffect(() => { const handleResize = () => { if (window.innerWidth >= 768) setSidebarOpen(true); else setSidebarOpen(false); }; handleResize(); window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }, []);
-  useEffect(() => { if (window.innerWidth < 768 && sidebarOpen) closeSidebarOnMobile(); }, [location.pathname, sidebarOpen]); // sidebarOpen added to dependency
+  const closeSidebar = () => { // Renamed from closeSidebarOnMobile for clarity
+    setSidebarOpen(false);
+  };
+
+  // Effect to handle initial sidebar state and window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true); // Open by default on desktop
+      } else {
+        setSidebarOpen(false); // Closed by default on mobile
+      }
+    };
+    // Set initial state
+    handleResize(); 
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Effect to close mobile sidebar on route change
+  useEffect(() => {
+    if (window.innerWidth < 768 && sidebarOpen) {
+      setSidebarOpen(false); // Close it if it was open on mobile and route changed
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // Only depend on location.pathname
+
 
   return (
-    <div className="h-screen flex overflow-hidden bg-nuzum-bg-deep">
-      {/* Conditionally render Sidebar for desktop based on sidebarOpen or always render and control via classes */}
-      {/* Approach 1: Conditional rendering for desktop (simpler if transitions are not paramount for desktop hide) */}
-      {/* <div className={`transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-60 md:w-64' : 'w-0'} md:block`}>
-        {sidebarOpen && <Sidebar isOpen={sidebarOpen} onClose={closeSidebarOnMobile} />}
-      </div> */}
-
-      {/* Approach 2: Always render, use translate and margin for desktop (better for transitions) */}
-      <div className={`
-        flex-shrink-0 
-        transition-all duration-300 ease-in-out
-        ${sidebarOpen ? 'w-60 md:w-64' : 'w-0 md:w-0'} 
-        overflow-hidden 
-        relative /* Needed for fixed/sticky sidebar within */
-      `}>
-        <Sidebar isOpen={sidebarOpen} onClose={closeSidebarOnMobile} />
-      </div>
+    <div className="h-screen flex overflow-x-hidden bg-nuzum-bg-deep"> {/* overflow-x-hidden on parent */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} /> {/* Pass setSidebarOpen(false) directly for close actions */}
       
-      <div className="flex-1 flex flex-col overflow-y-auto"> {/* Removed conditional margin, sidebar presence handles width */}
+      {/* Main content area */}
+      <div 
+        className={`
+          flex-1 flex flex-col 
+          transition-all duration-300 ease-in-out
+          overflow-y-auto  /* Allow content to scroll */
+          ${sidebarOpen ? 'md:ms-60 lg:ms-64' : 'md:ms-0'} 
+          ${sidebarOpen ? 'rtl:md:me-60 rtl:lg:me-64' : 'rtl:md:me-0'}
+        `}
+      >
         <ContentHeader onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-nuzum-bg-deep overflow-y-auto">
+        <div className="flex-grow p-4 sm:p-6 lg:p-8 bg-nuzum-bg-deep"> {/* This div now ensures padding is consistent */}
           <Outlet /> 
-        </main>
+        </div>
       </div>
     </div>
   );

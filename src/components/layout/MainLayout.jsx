@@ -4,36 +4,34 @@ import Sidebar from './Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../common/LanguageSwitcher';
-import { FiLogOut, FiUser, FiMenu, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiMenu } from 'react-icons/fi'; // Use FiMenu for mobile toggle
 import { supabase } from '../../lib/supabaseClient';
 import toast from 'react-hot-toast';
 
-const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
-  const { t, i18n } = useTranslation('common');
+const ContentHeader = ({ onMobileMenuToggle }) => { 
+  const { t } = useTranslation('common');
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-
   const handleLogout = async () => { const { error } = await supabase.auth.signOut(); if (error) { toast.error(t('operationFailed') + `: ${error.message}`); } else { toast.success(t('logoutSuccess')); navigate('/login'); }};
 
   return (
     <header className="bg-nuzum-surface shadow-card sticky top-0 z-20 border-b border-nuzum-border">
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div>
+          {/* Mobile Menu Toggle Button - only visible on small screens */}
+          <div className="md:hidden"> {/* This button ONLY shows on small screens */}
             <button
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent click from bubbling up to any potential overlay
-                onToggleSidebar();
-              }}
-              className="p-2 rounded-md text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-sidebar-bg focus:outline-none md:me-2"
-              aria-label={sidebarOpen ? t('closeSidebar') : t('openSidebar')}
+              onClick={onMobileMenuToggle}
+              className="p-2 rounded-md text-nuzum-text-secondary hover:text-nuzum-text-primary hover:bg-nuzum-sidebar-bg focus:outline-none"
+              aria-label={t('openSidebar')}
             >
-              {sidebarOpen ? 
-                (i18n.dir() === 'rtl' ? <FiChevronsRight size={24} /> : <FiChevronsLeft size={24} />) :
-                (i18n.dir() === 'rtl' ? <FiChevronsLeft size={24} /> : <FiChevronsRight size={24} />)
-              }
+              <FiMenu size={24} />
             </button>
           </div>
+
+          {/* Spacer to push right items to the end when mobile menu button is not there (on desktop) */}
+          <div className="hidden md:flex flex-1"></div>
+
           <div className="flex items-center space-s-3 sm:space-s-4">
             <LanguageSwitcher />
             {user && (
@@ -51,67 +49,40 @@ const ContentHeader = ({ onToggleSidebar, sidebarOpen }) => {
 };
 
 const MainLayout = () => {
-  // Initialize sidebarOpen based on screen size, but allow user to toggle it
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768); 
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
-  const { i18n } = useTranslation('common'); // For RTL check in margin class
 
-  const toggleSidebar = () => {
-    setSidebarOpen(prev => !prev);
+  const toggleMobileSidebar = () => {
+    setIsMobileSidebarOpen(prev => !prev);
   };
 
-  const closeSidebar = () => { // Specifically for closing, e.g., on nav item click or overlay click
-    setSidebarOpen(false);
+  const closeMobileSidebar = () => {
+    setIsMobileSidebarOpen(false);
   };
 
-  // Adjust sidebar based on initial screen size and on resize
+  // Effect to close mobile sidebar on route change
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        // On desktop, if you want it to always re-open on resize to desktop:
-        // setSidebarOpen(true); 
-        // Or, to remember the user's toggle state, this needs more complex logic with localStorage
-        // For now, let's keep it simple: if it was open, it stays open. If closed, it stays closed.
-        // If we resize from mobile (where it was forced closed) to desktop, let's open it.
-        if (!sidebarOpen && !localStorage.getItem('desktopSidebarWasManuallyClosed')) {
-             // setSidebarOpen(true); // This can be too aggressive.
-        }
-
-      } else {
-        setSidebarOpen(false); // Always close on mobile if resizing down
-      }
-    };
-
-    // Set initial state correctly for mobile
-    if (window.innerWidth < 768) {
-        setSidebarOpen(false);
+    if (isMobileSidebarOpen) { // Only if it was open (typically on mobile)
+      closeMobileSidebar();
     }
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []); // sidebarOpen removed from deps here as handleResize sets it
-
-  // Close mobile sidebar on route change
-  useEffect(() => {
-    if (window.innerWidth < 768 && sidebarOpen) {
-      setSidebarOpen(false); 
-    }
-  }, [location.pathname, sidebarOpen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
 
   return (
     <div className="h-screen flex overflow-x-hidden bg-nuzum-bg-deep">
-      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} /> 
+      {/* Sidebar is always rendered. Its internal CSS classes will handle its display.
+          On desktop (md+), it will be sticky and take up space.
+          On mobile, it will be fixed and its visibility (slide-in/out) is controlled by isMobileSidebarOpen.
+      */}
+      <Sidebar 
+        isMobileOpen={isMobileSidebarOpen} // Prop to control mobile overlay visibility
+        onMobileClose={closeMobileSidebar}   // Prop to close it from within (e.g. nav link click)
+      /> 
       
-      <div 
-        className={`
-          flex-1 flex flex-col 
-          transition-all duration-300 ease-in-out
-          overflow-y-auto 
-          ${sidebarOpen ? (i18n.dir() === 'rtl' ? 'md:mr-60 lg:mr-64' : 'md:ml-60 lg:ml-64') : (i18n.dir() === 'rtl' ? 'md:mr-0' : 'md:ml-0')}
-        `}
-      >
-        <ContentHeader onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+      {/* Main content area - flex-1 will make it take remaining space */}
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <ContentHeader onMobileMenuToggle={toggleMobileSidebar} /> {/* Pass toggle for mobile */}
         <div className="flex-grow p-4 sm:p-6 lg:p-8 bg-nuzum-bg-deep">
           <Outlet /> 
         </div>

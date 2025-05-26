@@ -20,46 +20,27 @@ const Sidebar = ({ isMobileOpen, onMobileClose }) => {
     </NavLink>
   );
 
-  // Base classes for the sidebar itself
-  const sidebarBaseClasses = `
-    w-60 bg-nuzum-sidebar-bg text-nuzum-text-primary flex-shrink-0 flex flex-col shadow-xl 
-    transform transition-transform duration-300 ease-in-out
-  `;
-
-  // Classes for desktop view (md and up)
-  const desktopClasses = `
-    md:w-64 md:sticky md:top-0 md:h-screen md:border-e md:border-nuzum-border md:translate-x-0
-  `;
-
-  // Classes for mobile view (default, overridden by md:)
-  const mobileBaseClasses = `
-    fixed inset-y-0 start-0 z-40 h-screen 
-  `;
-
-  // Conditional classes for mobile based on isMobileOpen and text direction
-  let mobileTransformClasses = '';
-  if (i18n.dir() === 'rtl') {
-    mobileTransformClasses = isMobileOpen ? 'translate-x-0' : 'translate-x-full';
-  } else {
-    mobileTransformClasses = isMobileOpen ? 'translate-x-0' : '-translate-x-full';
-  }
-
   return (
     <>
-      {/* Overlay for mobile - only shown when isMobileOpen is true */}
-      {isMobileOpen && (
-        <div 
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" 
-          onClick={onMobileClose}
-          aria-hidden="true"
-        ></div>
-      )}
-
-      <aside className={`${sidebarBaseClasses} ${desktopClasses} ${mobileBaseClasses} ${mobileTransformClasses}`}>
+      {isMobileOpen && ( <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden" onClick={onMobileClose} aria-hidden="true" ></div> )}
+      <aside 
+        className={`
+          w-60 bg-nuzum-sidebar-bg text-nuzum-text-primary flex-shrink-0 flex flex-col shadow-xl 
+          transform transition-transform duration-300 ease-in-out
+          md:w-64 md:sticky md:top-0 md:h-screen md:border-e md:border-nuzum-border md:translate-x-0
+          fixed inset-y-0 start-0 z-40 
+          ${i18n.dir() === 'rtl' ? (isMobileOpen ? 'translate-x-0' : 'translate-x-full') : (isMobileOpen ? 'translate-x-0' : '-translate-x-full')}
+        `}
+      >
         <div className="flex items-center justify-between h-16 px-4 border-b border-nuzum-border mb-2 sticky top-0 bg-nuzum-sidebar-bg z-10">
           <Link to="/" className="flex items-center text-nuzum-text-primary hover:opacity-80" onClick={onMobileClose}>
-            <img className="h-8 w-auto me-2" src="/favicon.png" alt={t('appName')} />
-            <span className="font-semibold text-lg tracking-tight">{t('appName')}</span>
+            {/* Updated Logo Image and Size */}
+            <img 
+              className="h-10 w-auto me-2 md:h-12" /* Base height h-10, md:h-12 for slightly larger on desktop */
+              src="/nuzum-logo.png"  /* CHANGE THIS if your logo file is named differently in /public */
+              alt={t('appName')} 
+            />
+            <span className="font-bold text-lg md:text-xl tracking-tight">{t('appName')}</span>
           </Link>
           <button 
             onClick={onMobileClose} 
